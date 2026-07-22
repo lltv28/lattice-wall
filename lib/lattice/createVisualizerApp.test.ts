@@ -155,11 +155,21 @@ describe("createVisualizerApp", () => {
   });
 
   it("keeps getLeadNodes and getFocusScreenPosition in agreement: every lead node is focusable", () => {
-    // Pins the invariant that getLeadNodes() only returns nodes that are
-    // actually on screen and focusable. Both methods read through
-    // visibleGraph(), so every id getLeadNodes() hands back must resolve to
-    // a defined position once focused — if growth is ever enabled and one
-    // of them regresses to reading the unfiltered graph, this fails.
+    // Sanity check that every id getLeadNodes() hands back resolves to a
+    // defined position once focused.
+    //
+    // KNOWN LIMITATION — this test cannot fail if getLeadNodes() regresses to
+    // reading the unfiltered graph. It runs under the hardcoded VAULT_PRESET,
+    // where growEnabled is false, so visibleGraph() returns every node and the
+    // filtered and unfiltered reads are identical. The divergence only appears
+    // with growEnabled: true, which no test can reach: VAULT_PRESET is applied
+    // inside createVisualizerApp and VisualizerDependencies exposes only
+    // rendererFactory and onAction, so there is no settings seam.
+    //
+    // Covering that case would mean adding a settings-injection point to
+    // production code for a configuration this project never enables. That was
+    // judged not worth it. If growEnabled ever becomes load-bearing, add the
+    // seam and a real test with it.
     const root = document.createElement("div");
     const app = createVisualizerApp(root, {
       rendererFactory: () => ({ render: vi.fn(), resize: vi.fn() }),
