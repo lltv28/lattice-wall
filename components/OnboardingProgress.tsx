@@ -34,6 +34,17 @@ export default function OnboardingProgress({
     prevPercentageRef.current = to;
     if (from === to) return;
 
+    // A hidden tab (backgrounded window, or a browser-automation capture
+    // that isn't the foreground tab) never fires requestAnimationFrame, which
+    // would otherwise leave the badge stuck at a stale percentage forever.
+    // Snap straight to the target — there's nothing being painted to animate
+    // for anyway. Deferred via setTimeout (not called synchronously here) to
+    // avoid the cascading-render lint rule on effect bodies.
+    if (typeof document !== 'undefined' && document.hidden) {
+      const id = window.setTimeout(() => setDisplayedPercentage(to), 0);
+      return () => window.clearTimeout(id);
+    }
+
     const startTime = performance.now();
     const duration = 400;
     const tick = (now: number) => {

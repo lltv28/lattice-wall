@@ -58,82 +58,98 @@ export function useChatFlow({ onAllRevealed, getAutoAdvanceDelay }: UseChatFlowO
     pinCleanupRef.current?.();
     pinCleanupRef.current = null;
 
+    const align = () => {
+      if (scrollGenRef.current !== gen) return;
+
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      // Find the target: thinkingRef (if visible) or lastItemRef
+      const el = thinkingRef.current || lastItemRef.current;
+      if (!el) return;
+
+      const clamped = alignElementToTop(container, el);
+
+      const start = container.scrollTop;
+      const distance = clamped - start;
+      if (Math.abs(distance) < 2) return;
+
+      // A hidden tab (backgrounded window, or a browser-automation capture
+      // that isn't the foreground tab) never fires requestAnimationFrame, so
+      // the animated path below would stall forever mid-scroll. Snap
+      // straight to the target instead — there's nothing being painted to
+      // animate for anyway.
+      const isHidden = typeof document !== 'undefined' && document.hidden;
+
+      // Snap instantly for tiny adjustments (e.g. thinking→message swap)
+      if (isHidden || Math.abs(distance) < 30) {
+        container.scrollTop = clamped;
+        return;
+      }
+
+      const startTime = performance.now();
+      // Scale duration to distance: big scrolls get full animation, small ones are quick
+      const duration = Math.min(1000, Math.max(300, Math.abs(distance) * 2.5));
+
+      const step = (now: number) => {
+        if (scrollGenRef.current !== gen) return;
+        const t = Math.min((now - startTime) / duration, 1);
+        const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        container.scrollTop = start + distance * eased;
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+
+      // Keep active element pinned briefly while dynamic content (chips/video/subtitles)
+      // changes size to avoid drift after initial alignment.
+      const pinDelay = window.setTimeout(() => {
+        if (scrollGenRef.current !== gen) return;
+        let pinRaf = 0;
+        const requestPin = () => {
+          cancelAnimationFrame(pinRaf);
+          pinRaf = requestAnimationFrame(() => {
+            if (scrollGenRef.current !== gen) return;
+            container.scrollTop = alignElementToTop(container, el);
+          });
+        };
+
+        const observer = typeof ResizeObserver !== 'undefined'
+          ? new ResizeObserver(requestPin)
+          : null;
+        observer?.observe(el);
+
+        const stopTimer = window.setTimeout(() => {
+          cleanup();
+        }, 1400);
+
+        const cleanup = () => {
+          observer?.disconnect();
+          clearTimeout(stopTimer);
+          cancelAnimationFrame(pinRaf);
+          if (pinCleanupRef.current === cleanup) pinCleanupRef.current = null;
+        };
+
+        pinCleanupRef.current = cleanup;
+      }, 220);
+
+      const existingCleanup = pinCleanupRef.current;
+      pinCleanupRef.current = () => {
+        clearTimeout(pinDelay);
+        existingCleanup?.();
+      };
+    };
+
+    // Same hidden-tab problem applies to the paint-wait itself: skip it and
+    // align immediately rather than waiting on rAFs that will never fire.
+    if (typeof document !== 'undefined' && document.hidden) {
+      align();
+      return;
+    }
+
     // Double rAF ensures DOM has painted after React state update
     requestAnimationFrame(() => {
       if (scrollGenRef.current !== gen) return;
-      requestAnimationFrame(() => {
-        if (scrollGenRef.current !== gen) return;
-
-        const container = scrollContainerRef.current;
-        if (!container) return;
-
-        // Find the target: thinkingRef (if visible) or lastItemRef
-        const el = thinkingRef.current || lastItemRef.current;
-        if (!el) return;
-
-        const clamped = alignElementToTop(container, el);
-
-        const start = container.scrollTop;
-        const distance = clamped - start;
-        if (Math.abs(distance) < 2) return;
-
-        // Snap instantly for tiny adjustments (e.g. thinking→message swap)
-        if (Math.abs(distance) < 30) {
-          container.scrollTop = clamped;
-          return;
-        }
-
-        const startTime = performance.now();
-        // Scale duration to distance: big scrolls get full animation, small ones are quick
-        const duration = Math.min(1000, Math.max(300, Math.abs(distance) * 2.5));
-
-        const step = (now: number) => {
-          if (scrollGenRef.current !== gen) return;
-          const t = Math.min((now - startTime) / duration, 1);
-          const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-          container.scrollTop = start + distance * eased;
-          if (t < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-
-        // Keep active element pinned briefly while dynamic content (chips/video/subtitles)
-        // changes size to avoid drift after initial alignment.
-        const pinDelay = window.setTimeout(() => {
-          if (scrollGenRef.current !== gen) return;
-          let pinRaf = 0;
-          const requestPin = () => {
-            cancelAnimationFrame(pinRaf);
-            pinRaf = requestAnimationFrame(() => {
-              if (scrollGenRef.current !== gen) return;
-              container.scrollTop = alignElementToTop(container, el);
-            });
-          };
-
-          const observer = typeof ResizeObserver !== 'undefined'
-            ? new ResizeObserver(requestPin)
-            : null;
-          observer?.observe(el);
-
-          const stopTimer = window.setTimeout(() => {
-            cleanup();
-          }, 1400);
-
-          const cleanup = () => {
-            observer?.disconnect();
-            clearTimeout(stopTimer);
-            cancelAnimationFrame(pinRaf);
-            if (pinCleanupRef.current === cleanup) pinCleanupRef.current = null;
-          };
-
-          pinCleanupRef.current = cleanup;
-        }, 220);
-
-        const existingCleanup = pinCleanupRef.current;
-        pinCleanupRef.current = () => {
-          clearTimeout(pinDelay);
-          existingCleanup?.();
-        };
-      });
+      requestAnimationFrame(align);
     });
   }, [alignElementToTop]);
 
