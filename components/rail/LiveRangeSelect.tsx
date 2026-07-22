@@ -12,6 +12,7 @@ export function LiveRangeSelect() {
         borderRadius: R.sm,
         padding: '8px 14px',
         boxShadow: C.cardShadow,
+        fontFamily: 'inherit',
       }}
     >
       <span

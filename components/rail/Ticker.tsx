@@ -11,6 +11,7 @@ export function Ticker({ feed }: { feed: FeedEvent[] }) {
         boxShadow: C.cardShadow,
         flex: 1,
         overflow: 'hidden',
+        fontFamily: 'inherit',
       }}
     >
       <div

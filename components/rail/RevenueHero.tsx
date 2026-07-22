@@ -10,6 +10,7 @@ export function RevenueHero({ amount }: { amount: number }) {
         borderRadius: R.lg,
         padding: '22px 24px',
         boxShadow: C.cardShadow,
+        fontFamily: 'inherit',
       }}
     >
       <div

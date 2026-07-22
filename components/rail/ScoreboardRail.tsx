@@ -28,6 +28,7 @@ export function ScoreboardRail({
         flexDirection: 'column',
         gap: '18px',
         height: '100%',
+        fontFamily: 'inherit',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

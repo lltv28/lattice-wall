@@ -10,6 +10,7 @@ export function MiniStat({ label, value }: { label: string; value: string }) {
         borderRadius: R.card,
         padding: '14px 16px',
         boxShadow: C.cardShadow,
+        fontFamily: 'inherit',
       }}
     >
       <div
