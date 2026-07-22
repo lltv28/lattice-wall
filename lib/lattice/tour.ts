@@ -9,7 +9,13 @@ export interface TourStep {
 }
 
 export const WIDE_MS = 8_000;
-export const DRILL_MS = 18_000;
+// 45s, not 18s. The quiz funnel behind each drilled lead needs real time to
+// run to an outcome (see components/lattice/QuizCard.tsx's FUNNEL_OPTS
+// comment) — measured directly against the funnel route, a cold run takes
+// ~50s even sped up. Combined with the ~8s a lead's iframe already spent
+// preloading during the previous wide beat, 45s of visible drill gives a
+// real conversion room to land before the wheel moves on.
+export const DRILL_MS = 45_000;
 export const PULLBACK_MS = 2_500;
 export const DRILLS_PER_CYCLE = 3;
 
@@ -52,7 +58,8 @@ export function selectDrillNodes(
 
 /**
  * One full loop: open on the whole wheel, then drill into each chosen lead
- * and pull back out. Wide-to-tight, roughly 70 seconds.
+ * and pull back out. Wide-to-tight, roughly 150 seconds — each drill runs
+ * long enough for its lead's funnel to reach a real outcome (see DRILL_MS).
  */
 export function buildTourCycle(drillNodes: WheelNode[]): TourStep[] {
   const steps: TourStep[] = [{ phase: "wide", durationMs: WIDE_MS }];

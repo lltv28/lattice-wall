@@ -8,7 +8,17 @@ import { buildLeadIdentities } from '@/lib/lattice/leads';
 export const CARD_SIZE = { width: 420, height: 560 };
 
 const IDENTITIES = buildLeadIdentities();
-const FUNNEL_OPTS = { count: 8, demoScale: 0.62, speed: 0.5 };
+// speed: 6, not 0.5. Nearly every step of the quiz flow gates on
+// waitingForInput, so total run time is dominated by this speed-scaled
+// auto-answer delay (see lib/useChatFlow.ts + components/OnboardingChat.tsx),
+// on top of a fixed ~10.7s "Building your report" checklist
+// (components/GeneratingChecklist.tsx) that speed cannot touch at all. At 0.5
+// a full run took well over a minute measured directly against the funnel
+// route, which a real lead's drill never lives long enough to reach — the
+// rail would never see a genuine outcome. 6x keeps the on-screen pace
+// watchable while landing a full run inside the preload+drill window (see
+// DRILL_MS).
+const FUNNEL_OPTS = { count: 8, demoScale: 0.62, speed: 6 };
 
 /**
  * Two iframes are kept mounted and cross-faded. Mounting a fresh iframe per

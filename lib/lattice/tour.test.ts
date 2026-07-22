@@ -73,10 +73,10 @@ describe("buildTourCycle", () => {
     );
   });
 
-  it("runs about 70 seconds", () => {
+  it("runs about 150 seconds", () => {
     const total = buildTourCycle(selectDrillNodes(leadFixture(), 42))
       .reduce((sum, step) => sum + step.durationMs, 0);
-    expect(total).toBeGreaterThan(65_000);
-    expect(total).toBeLessThan(75_000);
+    expect(total).toBeGreaterThan(145_000);
+    expect(total).toBeLessThan(155_000);
   });
 });
