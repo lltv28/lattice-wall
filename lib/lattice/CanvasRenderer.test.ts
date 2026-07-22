@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CanvasRenderer,
   focusedCamera,
   FOCUS_ZOOM,
   identityCamera,
@@ -7,6 +8,7 @@ import {
   nodeIdAtPoint,
   nodePixelPosition,
   screenToWorld,
+  worldToScreen,
 } from "./CanvasRenderer";
 import type { WheelGraph, WheelNode } from "./types";
 
@@ -152,5 +154,95 @@ describe("screenToWorld", () => {
     const camera = focusedCamera({ x: 0, y: 0 });
     const world = screenToWorld(400 + 36, 300, 800, 600, camera);
     expect(world.x).toBeCloseTo(36 / FOCUS_ZOOM);
+  });
+});
+
+describe("worldToScreen", () => {
+  it("is the exact inverse of screenToWorld", () => {
+    const camera = focusedCamera({ x: 400, y: 250 });
+    const world = screenToWorld(120, 340, 1600, 900, camera);
+    const back = worldToScreen(world, 1600, 900, camera);
+    expect(back.x).toBeCloseTo(120);
+    expect(back.y).toBeCloseTo(340);
+  });
+
+  it("maps the identity camera look-at point to the canvas center", () => {
+    const camera = identityCamera(1600, 900);
+    const screen = worldToScreen({ x: 800, y: 450 }, 1600, 900, camera);
+    expect(screen.x).toBeCloseTo(800);
+    expect(screen.y).toBeCloseTo(450);
+  });
+});
+
+describe("closed-state fill", () => {
+  // Stub 2D context that records the fillStyle in effect at every fill()
+  // call, so the tests observe the actual rendered color rather than just
+  // asserting on the node object.
+  function createFillTrackingContext(): { ctx: CanvasRenderingContext2D; fillCalls: string[] } {
+    const fillCalls: string[] = [];
+    const ctx = {
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 1,
+      globalAlpha: 1,
+      font: "",
+      textAlign: "center",
+      textBaseline: "middle",
+      save: () => {},
+      restore: () => {},
+      translate: () => {},
+      scale: () => {},
+      beginPath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      stroke: () => {},
+      arc: () => {},
+      rect: () => {},
+      fillRect: () => {},
+      fillText: () => {},
+      fill: () => {
+        fillCalls.push(ctx.fillStyle as string);
+      },
+    } as unknown as CanvasRenderingContext2D;
+    return { ctx, fillCalls };
+  }
+
+  function renderWithFillTracking(graph: WheelGraph): string[] {
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 600;
+    const { ctx, fillCalls } = createFillTrackingContext();
+    canvas.getContext = (() => ctx) as unknown as typeof canvas.getContext;
+    new CanvasRenderer(canvas).render(graph, undefined);
+    return fillCalls;
+  }
+
+  it("fills a closed avatar (lead) node with the green closed-state color", () => {
+    const avatar: WheelNode = {
+      id: "avatar-0",
+      ring: "avatar",
+      angle: 0,
+      radiusFraction: 0.8,
+      radius: 10,
+      color: "#2f6df6",
+      closed: true,
+    };
+    const fillCalls = renderWithFillTracking({ nodes: [avatar], links: [] });
+    expect(fillCalls).toEqual(["#1f9d55"]);
+  });
+
+  it("does not render a hub node green even when it carries closed: true", () => {
+    const hub: WheelNode = {
+      id: "hub-0",
+      ring: "hub",
+      zoneIndex: 0,
+      angle: 0,
+      radiusFraction: 0.22,
+      radius: 16,
+      color: "#2f6df6",
+      closed: true,
+    };
+    const fillCalls = renderWithFillTracking({ nodes: [hub], links: [] });
+    expect(fillCalls).toEqual(["#2f6df6"]);
   });
 });

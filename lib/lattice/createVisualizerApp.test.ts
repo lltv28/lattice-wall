@@ -128,4 +128,43 @@ describe("createVisualizerApp", () => {
     root.remove();
   });
 
+  it("focuses a node programmatically and reports its screen position", () => {
+    const root = document.createElement("div");
+    // jsdom has no 2D canvas context in this repo (no "canvas" npm package),
+    // so the real CanvasRenderer always throws in tests, same as every other
+    // test in this file — stub the renderer like the rest do.
+    const app = createVisualizerApp(root, {
+      rendererFactory: () => ({ render: vi.fn(), resize: vi.fn() }),
+    });
+
+    const leads = app.getLeadNodes();
+    expect(leads.length).toBe(96);
+
+    expect(app.getFocusScreenPosition()).toBeUndefined();
+
+    app.focusNode(leads[0]!.id);
+    const position = app.getFocusScreenPosition();
+    expect(position).toBeDefined();
+    expect(Number.isFinite(position!.x)).toBe(true);
+    expect(Number.isFinite(position!.y)).toBe(true);
+
+    app.focusNode(undefined);
+    expect(app.getFocusScreenPosition()).toBeUndefined();
+
+    app.destroy();
+  });
+
+  it("marks a lead node closed", () => {
+    const root = document.createElement("div");
+    const app = createVisualizerApp(root, {
+      rendererFactory: () => ({ render: vi.fn(), resize: vi.fn() }),
+    });
+    const target = app.getLeadNodes()[3]!;
+
+    expect(target.closed).toBe(false);
+    app.markClosed(target.id);
+    expect(app.getLeadNodes()[3]!.closed).toBe(true);
+
+    app.destroy();
+  });
 });

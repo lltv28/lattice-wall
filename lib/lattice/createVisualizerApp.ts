@@ -1,7 +1,7 @@
 import { normalizeSettings, VAULT_PRESET, type VisualSettings } from "./settings";
 import { generateVault } from "./generateVault";
 import { buildGrowthSchedule, type GrowthBatch } from "./growthSchedule";
-import type { WheelGraph } from "./types";
+import type { WheelGraph, WheelNode } from "./types";
 import {
   CanvasRenderer,
   focusedCamera,
@@ -9,6 +9,7 @@ import {
   nodeIdAtPoint,
   nodePixelPosition,
   screenToWorld,
+  worldToScreen,
   type Camera,
 } from "./CanvasRenderer";
 
@@ -16,6 +17,10 @@ export type VaultAction = "regenerate" | "pause" | "fullscreen" | "hide";
 
 export interface VisualizerApp {
   destroy(): void;
+  focusNode(nodeId: string | undefined): void;
+  getFocusScreenPosition(): { x: number; y: number } | undefined;
+  getLeadNodes(): WheelNode[];
+  markClosed(nodeId: string): void;
 }
 
 type Renderer = Pick<CanvasRenderer, "render" | "resize">;
@@ -68,7 +73,17 @@ export function createVisualizerApp(
   } catch (error) {
     const message = error instanceof Error ? error.message : "The visualizer could not start.";
     root.innerHTML = `<section class="fatal-message" role="alert"><strong>The visualizer could not start.</strong><span>${message}</span></section>`;
-    return { destroy(): void {} };
+    return {
+      destroy(): void {},
+      focusNode(): void {},
+      getFocusScreenPosition(): undefined {
+        return undefined;
+      },
+      getLeadNodes(): WheelNode[] {
+        return [];
+      },
+      markClosed(): void {},
+    };
   }
   renderer.resize(initialWidth, initialHeight);
   camera = identityCamera(initialWidth, initialHeight);
@@ -294,6 +309,30 @@ export function createVisualizerApp(
   }
   animationFrame = requestAnimationFrame(frame);
 
+  function focusNode(nodeId: string | undefined): void {
+    focusedNodeId = nodeId;
+    renderNow();
+  }
+
+  function getFocusScreenPosition(): { x: number; y: number } | undefined {
+    if (focusedNodeId === undefined) return undefined;
+    const node = visibleGraph().nodes.find((candidate) => candidate.id === focusedNodeId);
+    if (!node) return undefined;
+    const world = nodePixelPosition(node, canvas.width, canvas.height);
+    return worldToScreen(world, canvas.width, canvas.height, camera);
+  }
+
+  function getLeadNodes(): WheelNode[] {
+    return graph.nodes.filter((node) => node.ring === "avatar");
+  }
+
+  function markClosed(nodeId: string): void {
+    const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+    if (!node) return;
+    node.closed = true;
+    renderNow();
+  }
+
   return {
     destroy(): void {
       cancelAnimationFrame(animationFrame);
@@ -301,5 +340,9 @@ export function createVisualizerApp(
       window.removeEventListener("keydown", handleKeydown);
       canvas.removeEventListener("click", handleCanvasClick);
     },
+    focusNode,
+    getFocusScreenPosition,
+    getLeadNodes,
+    markClosed,
   };
 }

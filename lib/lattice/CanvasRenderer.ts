@@ -100,6 +100,21 @@ export function screenToWorld(
   };
 }
 
+// The inverse of screenToWorld. The floating quiz card is a DOM element
+// positioned in canvas-screen space, so it needs the focused node's position
+// after the camera transform, not its layout position.
+export function worldToScreen(
+  world: { x: number; y: number },
+  width: number,
+  height: number,
+  camera: Camera,
+): { x: number; y: number } {
+  return {
+    x: (world.x - camera.lookAtX) * camera.scale + width / 2,
+    y: (world.y - camera.lookAtY) * camera.scale + height / 2,
+  };
+}
+
 export class CanvasRenderer {
   private ctx: CanvasRenderingContext2D;
 
@@ -215,7 +230,11 @@ export class CanvasRenderer {
     }
 
     if (node.ring === "hub" || node.ring === "avatar") {
-      ctx.fillStyle = node.color;
+      // Only lead (avatar) nodes ever turn green when closed — hubs are
+      // sales reps, not leads, so this stays scoped to avatars even though
+      // `closed` isn't otherwise restricted to that ring.
+      const isClosedLead = node.ring === "avatar" && node.closed === true;
+      ctx.fillStyle = isClosedLead ? "#1f9d55" : node.color;
       ctx.beginPath();
       ctx.arc(position.x, position.y, node.radius, 0, Math.PI * 2);
       ctx.fill();
