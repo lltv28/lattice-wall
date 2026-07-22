@@ -154,6 +154,27 @@ describe("createVisualizerApp", () => {
     app.destroy();
   });
 
+  it("keeps getLeadNodes and getFocusScreenPosition in agreement: every lead node is focusable", () => {
+    // Pins the invariant that getLeadNodes() only returns nodes that are
+    // actually on screen and focusable. Both methods read through
+    // visibleGraph(), so every id getLeadNodes() hands back must resolve to
+    // a defined position once focused — if growth is ever enabled and one
+    // of them regresses to reading the unfiltered graph, this fails.
+    const root = document.createElement("div");
+    const app = createVisualizerApp(root, {
+      rendererFactory: () => ({ render: vi.fn(), resize: vi.fn() }),
+    });
+
+    const leads = app.getLeadNodes();
+    expect(leads.length).toBeGreaterThan(0);
+    for (const lead of leads) {
+      app.focusNode(lead.id);
+      expect(app.getFocusScreenPosition()).toBeDefined();
+    }
+
+    app.destroy();
+  });
+
   it("marks a lead node closed", () => {
     const root = document.createElement("div");
     const app = createVisualizerApp(root, {

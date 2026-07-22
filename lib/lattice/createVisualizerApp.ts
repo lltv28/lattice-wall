@@ -323,7 +323,7 @@ export function createVisualizerApp(
   }
 
   function getLeadNodes(): WheelNode[] {
-    return graph.nodes.filter((node) => node.ring === "avatar");
+    return visibleGraph().nodes.filter((node) => node.ring === "avatar");
   }
 
   function markClosed(nodeId: string): void {
