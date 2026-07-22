@@ -3,14 +3,15 @@ import { generateVault } from "./generateVault";
 import { buildGrowthSchedule, type GrowthBatch } from "./growthSchedule";
 import type { WheelGraph, WheelNode } from "./types";
 import {
+  asideCamera,
   CanvasRenderer,
-  focusedCamera,
   identityCamera,
   nodeIdAtPoint,
   nodePixelPosition,
   screenToWorld,
   worldToScreen,
   type Camera,
+  type CardSide,
 } from "./CanvasRenderer";
 
 export type VaultAction = "regenerate" | "pause" | "fullscreen" | "hide";
@@ -19,6 +20,7 @@ export interface VisualizerApp {
   destroy(): void;
   focusNode(nodeId: string | undefined): void;
   getFocusScreenPosition(): { x: number; y: number } | undefined;
+  getFocusSide(): CardSide | undefined;
   getLeadNodes(): WheelNode[];
   markClosed(nodeId: string): void;
 }
@@ -79,6 +81,9 @@ export function createVisualizerApp(
       getFocusScreenPosition(): undefined {
         return undefined;
       },
+      getFocusSide(): undefined {
+        return undefined;
+      },
       getLeadNodes(): WheelNode[] {
         return [];
       },
@@ -104,12 +109,26 @@ export function createVisualizerApp(
     };
   }
 
-  function targetCamera(): Camera {
-    const focusedNode = focusedNodeId
+  function findFocusedNode(): WheelNode | undefined {
+    return focusedNodeId
       ? visibleGraph().nodes.find((node) => node.id === focusedNodeId)
       : undefined;
+  }
+
+  // Which half of the wheel the focused orb sits on, decided from its WORLD
+  // position so this has no circular dependency on the camera it in turn
+  // decides the target for. The quiz card goes on the same side the wheel is
+  // then panned away from (see asideCamera), so the card and the panned-clear
+  // space always land on the same side.
+  function focusSideFor(node: WheelNode): CardSide {
+    const position = nodePixelPosition(node, canvas.width, canvas.height);
+    return position.x >= canvas.width / 2 ? "right" : "left";
+  }
+
+  function targetCamera(): Camera {
+    const focusedNode = findFocusedNode();
     if (focusedNode) {
-      return focusedCamera(nodePixelPosition(focusedNode, canvas.width, canvas.height));
+      return asideCamera(canvas.width, canvas.height, focusSideFor(focusedNode));
     }
     return identityCamera(canvas.width, canvas.height);
   }
@@ -322,6 +341,11 @@ export function createVisualizerApp(
     return worldToScreen(world, canvas.width, canvas.height, camera);
   }
 
+  function getFocusSide(): CardSide | undefined {
+    const focusedNode = findFocusedNode();
+    return focusedNode ? focusSideFor(focusedNode) : undefined;
+  }
+
   function getLeadNodes(): WheelNode[] {
     return visibleGraph().nodes.filter((node) => node.ring === "avatar");
   }
@@ -342,6 +366,7 @@ export function createVisualizerApp(
     },
     focusNode,
     getFocusScreenPosition,
+    getFocusSide,
     getLeadNodes,
     markClosed,
   };

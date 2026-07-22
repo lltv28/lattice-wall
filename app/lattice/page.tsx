@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScoreboardRail } from '@/components/rail/ScoreboardRail';
-import { QuizCard } from '@/components/lattice/QuizCard';
+import { CARD_SIZE, QuizCard } from '@/components/lattice/QuizCard';
 import { useTourDriver } from '@/components/lattice/useTourDriver';
 import {
   BASE_CALLS,
@@ -42,7 +42,7 @@ const COL_GAP = 40;
 // padding, so this is a constant rather than something to measure. Card
 // placement works in this space, because getFocusScreenPosition() returns
 // canvas-relative coordinates and the canvas fills this column.
-const WHEEL_W = STAGE_W - PAD * 2 - RAIL_W - COL_GAP; // 1500
+const WHEEL_W = STAGE_W - PAD * 2 - RAIL_W - COL_GAP; // 1440
 const WHEEL_H = STAGE_H - PAD * 2; // 1000
 const CARD_MARGIN = 16;
 
@@ -82,15 +82,29 @@ export default function LatticePage() {
   //
   // The stage is a fixed 1920x1080 with fixed padding, so the wheel column's
   // size is a constant, not something to measure.
-  const bounds = useMemo(
-    () => ({
-      left: CARD_MARGIN,
+  //
+  // On a drill, the wheel pans aside (see asideCamera in CanvasRenderer) so
+  // one side of the column is left clear of every node, lit or dimmed. bounds
+  // must shrink to exactly that clear slot — not the whole column — or
+  // placeCard's clamp would happily put the card back on top of the wheel.
+  // getFocusSide() picks which side mirrors CanvasRenderer's own pan choice.
+  const focusSide = app?.getFocusSide();
+  const bounds = useMemo(() => {
+    if (focusSide === 'left') {
+      return {
+        left: CARD_MARGIN,
+        top: CARD_MARGIN,
+        right: CARD_MARGIN + CARD_SIZE.width,
+        bottom: WHEEL_H - CARD_MARGIN,
+      };
+    }
+    return {
+      left: WHEEL_W - CARD_MARGIN - CARD_SIZE.width,
       top: CARD_MARGIN,
       right: WHEEL_W - CARD_MARGIN,
       bottom: WHEEL_H - CARD_MARGIN,
-    }),
-    [],
-  );
+    };
+  }, [focusSide]);
 
   // A real funnel outcome for the lead currently on screen does two things:
   // flips its node to closed, and pushes a REAL line into the conversions

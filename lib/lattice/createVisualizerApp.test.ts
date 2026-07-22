@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { nodePixelPosition } from "./CanvasRenderer";
 import { createVisualizerApp } from "./createVisualizerApp";
 import {
   AVATAR_COUNT,
@@ -181,6 +182,29 @@ describe("createVisualizerApp", () => {
       app.focusNode(lead.id);
       expect(app.getFocusScreenPosition()).toBeDefined();
     }
+
+    app.destroy();
+  });
+
+  it("getFocusSide reports undefined when nothing is focused and agrees with the node's world x otherwise", () => {
+    // jsdom's default canvas size is 300x150 (see the click test above) since
+    // this stub renderer's resize() is a no-op.
+    const root = document.createElement("div");
+    const app = createVisualizerApp(root, {
+      rendererFactory: () => ({ render: vi.fn(), resize: vi.fn() }),
+    });
+
+    expect(app.getFocusSide()).toBeUndefined();
+
+    for (const lead of app.getLeadNodes()) {
+      app.focusNode(lead.id);
+      const position = nodePixelPosition(lead, 300, 150);
+      const expectedSide = position.x >= 150 ? "right" : "left";
+      expect(app.getFocusSide()).toBe(expectedSide);
+    }
+
+    app.focusNode(undefined);
+    expect(app.getFocusSide()).toBeUndefined();
 
     app.destroy();
   });

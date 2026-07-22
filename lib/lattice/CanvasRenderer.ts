@@ -13,12 +13,6 @@ const PALETTE = {
 const FADE_ALPHA = 0.12;
 const FADE_NODE_RADIUS = 3;
 
-// Clicking a node zooms the camera toward it, matching the reference's
-// "click any node to focus on it" behavior rather than a flat zone dim.
-// Kept modest (not a dramatic zoom-in) per direct feedback that 1.8 felt
-// like too much.
-export const FOCUS_ZOOM = 1.3;
-
 export interface Camera {
   scale: number;
   lookAtX: number;
@@ -35,8 +29,19 @@ export function identityCamera(width: number, height: number): Camera {
   return { scale: 1, lookAtX: width / 2, lookAtY: height / 2 };
 }
 
-export function focusedCamera(focusedPosition: { x: number; y: number }): Camera {
-  return { scale: FOCUS_ZOOM, lookAtX: focusedPosition.x, lookAtY: focusedPosition.y };
+export type CardSide = "left" | "right";
+
+// The drill camera used to zoom in on the focused node (see git history for
+// the old focusedCamera/FOCUS_ZOOM). It now instead pans the wheel aside so a
+// quiz card can sit beside it with zero overlap, including the dimmed
+// background nodes — the card is the magnifier now, not the camera. Panning
+// keeps scale at 1: the target on-screen wheel center is expressed as a
+// fraction of `width` (measured against the 1440px-wide reference column),
+// then converted to a lookAt via the same width - target relationship
+// worldToScreen uses, so it holds at any canvas size.
+export function asideCamera(width: number, height: number, cardSide: CardSide): Camera {
+  const targetCx = cardSide === "right" ? width * (500 / 1440) : width * (940 / 1440);
+  return { scale: 1, lookAtX: width - targetCx, lookAtY: height / 2 };
 }
 
 export function nodePixelPosition(
@@ -142,10 +147,11 @@ export class CanvasRenderer {
     const width = canvas.width;
     const height = canvas.height;
     const activeCamera = camera ?? identityCamera(width, height);
-    // How "zoomed in" the current (already-eased) camera is, 0..1 — drives
-    // the dim/highlight crossfade so it tracks the actual on-screen zoom
-    // instead of a separate, possibly out-of-sync progress value.
-    const focusStrength = Math.min(1, Math.max(0, (activeCamera.scale - 1) / (FOCUS_ZOOM - 1)));
+    // Drives the dim/highlight crossfade. This used to derive from how far
+    // the (eased) camera had zoomed toward FOCUS_ZOOM, but the drill camera
+    // now pans aside at a constant scale of 1 instead of zooming, so scale no
+    // longer carries any focus signal — key it off focusedNodeId directly.
+    const focusStrength = focusedNodeId !== undefined ? 1 : 0;
 
     ctx.fillStyle = PALETTE.background;
     ctx.fillRect(0, 0, width, height);

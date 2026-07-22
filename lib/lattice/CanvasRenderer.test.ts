@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  asideCamera,
   CanvasRenderer,
-  focusedCamera,
-  FOCUS_ZOOM,
   identityCamera,
   neighborIds,
   nodeIdAtPoint,
   nodePixelPosition,
   screenToWorld,
   worldToScreen,
+  type Camera,
 } from "./CanvasRenderer";
 import type { WheelGraph, WheelNode } from "./types";
 
@@ -166,7 +166,7 @@ describe("nodeIdAtPoint", () => {
   });
 });
 
-describe("identityCamera / focusedCamera", () => {
+describe("identityCamera / asideCamera", () => {
   it("identityCamera has no zoom and looks at canvas center", () => {
     const camera = identityCamera(800, 600);
     expect(camera.scale).toBeCloseTo(1);
@@ -174,11 +174,30 @@ describe("identityCamera / focusedCamera", () => {
     expect(camera.lookAtY).toBeCloseTo(300);
   });
 
-  it("focusedCamera is zoomed to FOCUS_ZOOM and centered on the given position", () => {
-    const camera = focusedCamera({ x: 550, y: 350 });
-    expect(camera.scale).toBeCloseTo(FOCUS_ZOOM);
-    expect(camera.lookAtX).toBeCloseTo(550);
-    expect(camera.lookAtY).toBeCloseTo(350);
+  it("asideCamera never zooms, on either side", () => {
+    expect(asideCamera(1440, 1000, "right").scale).toBeCloseTo(1);
+    expect(asideCamera(1440, 1000, "left").scale).toBeCloseTo(1);
+  });
+
+  it("pans the wheel's world center to screen x=500 when the card is on the right", () => {
+    const camera = asideCamera(1440, 1000, "right");
+    // targetCx = 1440 * (500/1440) = 500; lookAtX = width - targetCx = 940.
+    expect(camera.lookAtX).toBeCloseTo(940);
+    expect(camera.lookAtY).toBeCloseTo(500);
+  });
+
+  it("pans the wheel's world center to screen x=940 when the card is on the left", () => {
+    const camera = asideCamera(1440, 1000, "left");
+    // targetCx = 1440 * (940/1440) = 940; lookAtX = width - targetCx = 500.
+    expect(camera.lookAtX).toBeCloseTo(500);
+    expect(camera.lookAtY).toBeCloseTo(500);
+  });
+
+  it("expresses its targets as fractions of width, so they hold at other canvas sizes", () => {
+    const camera = asideCamera(2880, 2000, "right");
+    // targetCx = 2880 * (500/1440) = 1000; lookAtX = 2880 - 1000 = 1880.
+    expect(camera.lookAtX).toBeCloseTo(1880);
+    expect(camera.lookAtY).toBeCloseTo(1000);
   });
 });
 
@@ -190,23 +209,23 @@ describe("screenToWorld", () => {
     expect(world.y).toBeCloseTo(45);
   });
 
-  it("maps the screen center back to the focused node's world position under focusedCamera", () => {
-    const camera = focusedCamera({ x: 455, y: 300 });
+  it("maps the screen center back to the camera's look-at point", () => {
+    const camera: Camera = { scale: 1.3, lookAtX: 455, lookAtY: 300 };
     const world = screenToWorld(400, 300, 800, 600, camera);
     expect(world.x).toBeCloseTo(455);
     expect(world.y).toBeCloseTo(300);
   });
 
   it("scales offsets from center by the inverse of the camera's scale", () => {
-    const camera = focusedCamera({ x: 0, y: 0 });
+    const camera: Camera = { scale: 1.3, lookAtX: 0, lookAtY: 0 };
     const world = screenToWorld(400 + 36, 300, 800, 600, camera);
-    expect(world.x).toBeCloseTo(36 / FOCUS_ZOOM);
+    expect(world.x).toBeCloseTo(36 / 1.3);
   });
 });
 
 describe("worldToScreen", () => {
   it("is the exact inverse of screenToWorld", () => {
-    const camera = focusedCamera({ x: 400, y: 250 });
+    const camera: Camera = { scale: 1.3, lookAtX: 400, lookAtY: 250 };
     const world = screenToWorld(120, 340, 1600, 900, camera);
     const back = worldToScreen(world, 1600, 900, camera);
     expect(back.x).toBeCloseTo(120);
@@ -291,5 +310,98 @@ describe("closed-state fill", () => {
     };
     const fillCalls = renderWithFillTracking({ nodes: [hub], links: [] });
     expect(fillCalls).toEqual(["#2f6df6"]);
+  });
+});
+
+describe("focus dimming", () => {
+  // The dim/highlight crossfade used to derive from how far the camera had
+  // zoomed toward the old FOCUS_ZOOM. The drill camera now pans aside at a
+  // constant scale of 1 instead of zooming (see asideCamera), so this checks
+  // dimming is keyed off focusedNodeId directly and still fires even though
+  // the camera passed in never deviates from scale 1.
+  function createAlphaTrackingContext(): { ctx: CanvasRenderingContext2D; arcAlphas: number[] } {
+    const arcAlphas: number[] = [];
+    const ctx = {
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 1,
+      globalAlpha: 1,
+      font: "",
+      textAlign: "center",
+      textBaseline: "middle",
+      save: () => {},
+      restore: () => {},
+      translate: () => {},
+      scale: () => {},
+      beginPath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      stroke: () => {},
+      arc: () => {
+        arcAlphas.push(ctx.globalAlpha as number);
+      },
+      rect: () => {},
+      fillRect: () => {},
+      fillText: () => {},
+      fill: () => {},
+    } as unknown as CanvasRenderingContext2D;
+    return { ctx, arcAlphas };
+  }
+
+  it("dims a non-neighbor node to zero alpha once a node is focused, even at scale 1", () => {
+    const focused: WheelNode = {
+      id: "focused",
+      ring: "avatar",
+      angle: 0,
+      radiusFraction: 0.5,
+      radius: 5,
+      color: "#2f6df6",
+    };
+    const other: WheelNode = {
+      id: "other",
+      ring: "avatar",
+      angle: 2,
+      radiusFraction: 0.5,
+      radius: 5,
+      color: "#2f6df6",
+    };
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 600;
+    const { ctx, arcAlphas } = createAlphaTrackingContext();
+    canvas.getContext = (() => ctx) as unknown as typeof canvas.getContext;
+
+    // A drill (asideCamera) camera: scale is 1, same as the identity camera.
+    new CanvasRenderer(canvas).render(
+      { nodes: [focused, other], links: [] },
+      "focused",
+      { scale: 1, lookAtX: 400, lookAtY: 300 },
+    );
+
+    // "other" is not in focused's neighbor set, so its full-detail arc draws
+    // at 1 - focusStrength. If dimming still depended on camera.scale (which
+    // never leaves 1 for either wide/pullback or a drill now), this would be
+    // 1 (never dimmed) instead of 0.
+    expect(arcAlphas).toContain(0);
+  });
+
+  it("does not dim anything when no node is focused", () => {
+    const solo: WheelNode = {
+      id: "solo",
+      ring: "avatar",
+      angle: 0,
+      radiusFraction: 0.5,
+      radius: 5,
+      color: "#2f6df6",
+    };
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 600;
+    const { ctx, arcAlphas } = createAlphaTrackingContext();
+    canvas.getContext = (() => ctx) as unknown as typeof canvas.getContext;
+
+    new CanvasRenderer(canvas).render({ nodes: [solo], links: [] }, undefined);
+
+    expect(arcAlphas).toEqual([1]);
   });
 });

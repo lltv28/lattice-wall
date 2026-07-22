@@ -20,6 +20,7 @@ function fakeApp() {
     destroy: vi.fn(),
     focusNode: vi.fn(),
     getFocusScreenPosition: vi.fn(() => ({ x: 100, y: 100 })),
+    getFocusSide: vi.fn(() => undefined),
     getLeadNodes: () => leads,
     markClosed: vi.fn(),
   };

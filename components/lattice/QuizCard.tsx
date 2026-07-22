@@ -7,6 +7,13 @@ import { buildLeadIdentities } from '@/lib/lattice/leads';
 
 export const CARD_SIZE = { width: 420, height: 560 };
 
+// Low-alpha ink rather than C.border: the wheel's background (#f7f8f7) and
+// C.border (#e5e5e8) are too close in value for a 1px border-colored line to
+// read against it. Ink at low alpha stays visible on that background without
+// competing with the wheel's own edge/node colors.
+const CONNECTOR_COLOR = 'rgba(26, 26, 26, 0.35)';
+const CONNECTOR_DOT_RADIUS = 3.5;
+
 const IDENTITIES = buildLeadIdentities();
 // speed: 3. Nearly every step of the quiz flow gates on waitingForInput, so
 // total run time is dominated by this speed-scaled auto-answer delay (see
@@ -86,50 +93,91 @@ export function QuizCard({
   const anchor = nodePosition ?? { x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 };
   const placement = placeCard(anchor, CARD_SIZE, bounds);
 
+  // The connector runs from the focused orb to the midpoint of whichever
+  // card edge actually faces the wheel — the left edge when the card sits on
+  // the right (side: "right"), the right edge when it sits on the left.
+  const cardEdgeX = placement.side === 'right' ? placement.x : placement.x + CARD_SIZE.width;
+  const cardEdgeY = placement.y + CARD_SIZE.height / 2;
+
   return (
-    <div
-      style={{
-        position: 'absolute',
-        left: `${placement.x}px`,
-        top: `${placement.y}px`,
-        width: `${CARD_SIZE.width}px`,
-        height: `${CARD_SIZE.height}px`,
-        borderRadius: R.lg,
-        overflow: 'hidden',
-        background: C.card,
-        border: `1px solid ${C.border}`,
-        boxShadow: C.cardShadow,
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 420ms ease, left 520ms ease, top 520ms ease',
-        pointerEvents: 'none',
-        zIndex: 5,
-      }}
-    >
-      {slots.map((slotLeadId, index) => (
-        <iframe
-          key={index}
-          title={`quiz-slot-${index}`}
-          src={
-            slotLeadId === undefined
-              ? 'about:blank'
-              : buildFunnelSrc(
-                  { id: slotLeadId, seed: IDENTITIES[slotLeadId]?.seed ?? 7000 },
-                  index,
-                  FUNNEL_OPTS,
-                )
-          }
+    <>
+      {/* The card is kept as the first child (z-index alone controls the
+          stacking, not DOM order) so it stays container.firstElementChild —
+          existing QuizCard tests read the card's inline style straight off
+          that reference. */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${placement.x}px`,
+          top: `${placement.y}px`,
+          width: `${CARD_SIZE.width}px`,
+          height: `${CARD_SIZE.height}px`,
+          borderRadius: R.lg,
+          overflow: 'hidden',
+          background: C.card,
+          border: `1px solid ${C.border}`,
+          boxShadow: C.cardShadow,
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 420ms ease, left 520ms ease, top 520ms ease',
+          pointerEvents: 'none',
+          zIndex: 5,
+        }}
+      >
+        {slots.map((slotLeadId, index) => (
+          <iframe
+            key={index}
+            title={`quiz-slot-${index}`}
+            src={
+              slotLeadId === undefined
+                ? 'about:blank'
+                : buildFunnelSrc(
+                    { id: slotLeadId, seed: IDENTITIES[slotLeadId]?.seed ?? 7000 },
+                    index,
+                    FUNNEL_OPTS,
+                  )
+            }
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              opacity: index === active ? 1 : 0,
+              transition: 'opacity 320ms ease',
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
+      </div>
+      {nodePosition && (
+        <svg
           style={{
             position: 'absolute',
             inset: 0,
             width: '100%',
             height: '100%',
-            border: 'none',
-            opacity: index === active ? 1 : 0,
-            transition: 'opacity 320ms ease',
             pointerEvents: 'none',
+            opacity: visible ? 1 : 0,
+            transition: 'opacity 420ms ease',
+            zIndex: 4,
           }}
-        />
-      ))}
-    </div>
+        >
+          <line
+            x1={nodePosition.x}
+            y1={nodePosition.y}
+            x2={cardEdgeX}
+            y2={cardEdgeY}
+            stroke={CONNECTOR_COLOR}
+            strokeWidth={1}
+          />
+          <circle
+            cx={nodePosition.x}
+            cy={nodePosition.y}
+            r={CONNECTOR_DOT_RADIUS}
+            fill={CONNECTOR_COLOR}
+          />
+        </svg>
+      )}
+    </>
   );
 }
