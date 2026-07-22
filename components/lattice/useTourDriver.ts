@@ -11,7 +11,9 @@ export interface TourState {
   /**
    * The lead whose drill comes next, including across a cycle boundary. The
    * card preloads this into its idle iframe so the next drill opens on an
-   * already-running funnel instead of a reload.
+   * already-running funnel instead of a reload. Only set during 'wide' and
+   * 'pullback' phases — undefined during 'drill', so a lead's funnel gets a
+   * short head start rather than running unseen for its own entire drill.
    */
   nextLeadId: number | undefined;
 }
@@ -73,7 +75,12 @@ export function useTourDriver(app: VisualizerApp | null): TourState {
           phase: step.phase,
           nodeId: step.nodeId,
           leadId: leadIdOf(step.nodeId),
-          nextLeadId: upcomingLeadAfter(index),
+          // Only preload during wide/pullback. Exposing this during a drill
+          // itself would let the idle slot's funnel race to completion (and
+          // loop back to its intro) long before that lead's own drill opens,
+          // which is what produced a "Potential Complete" banner sitting on
+          // a restarted intro screen on camera.
+          nextLeadId: step.phase === 'drill' ? undefined : upcomingLeadAfter(index),
         });
 
         timer = setTimeout(() => runStep(index + 1), step.durationMs);

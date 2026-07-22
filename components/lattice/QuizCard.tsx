@@ -8,17 +8,18 @@ import { buildLeadIdentities } from '@/lib/lattice/leads';
 export const CARD_SIZE = { width: 420, height: 560 };
 
 const IDENTITIES = buildLeadIdentities();
-// speed: 6, not 0.5. Nearly every step of the quiz flow gates on
+// speed: 3, not 6. Nearly every step of the quiz flow gates on
 // waitingForInput, so total run time is dominated by this speed-scaled
 // auto-answer delay (see lib/useChatFlow.ts + components/OnboardingChat.tsx),
 // on top of a fixed ~10.7s "Building your report" checklist
-// (components/GeneratingChecklist.tsx) that speed cannot touch at all. At 0.5
-// a full run took well over a minute measured directly against the funnel
-// route, which a real lead's drill never lives long enough to reach — the
-// rail would never see a genuine outcome. 6x keeps the on-screen pace
-// watchable while landing a full run inside the preload+drill window (see
-// DRILL_MS).
-const FUNNEL_OPTS = { count: 8, demoScale: 0.62, speed: 6 };
+// (components/GeneratingChecklist.tsx) that speed cannot touch at all. At
+// speed 3 the input steps take roughly 10s, landing a full run (~10s inputs
+// + ~10.7s generating) inside an 18s drill plus its short preload — see
+// DRILL_MS and useTourDriver's nextLeadId comment. 6x raced the funnel to
+// completion and back to its intro screen while the card was still hidden,
+// which is what produced a "Potential Complete" banner sitting on a
+// restarted intro on camera.
+const FUNNEL_OPTS = { count: 8, demoScale: 0.62, speed: 3 };
 
 /**
  * Two iframes are kept mounted and cross-faded. Mounting a fresh iframe per

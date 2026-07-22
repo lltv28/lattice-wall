@@ -25,7 +25,7 @@ export function RevenueHero({ amount }: { amount: number }) {
         Revenue · Today
       </div>
       <div style={{ fontSize: '64px', fontWeight: W.semibold, color: C.green, lineHeight: 1.1 }}>
-        {`$${shown.toLocaleString()}`}
+        {`$${Math.round(shown).toLocaleString()}`}
       </div>
       <div style={{ fontSize: `${TYPE.xs}px`, color: C.muted, fontWeight: W.normal }}>
         Updating live

@@ -59,6 +59,15 @@ export function neighborIds(graph: WheelGraph, focusedNodeId: string): Set<strin
     if (link.sourceId === focusedNodeId) ids.add(link.targetId);
     if (link.targetId === focusedNodeId) ids.add(link.sourceId);
   }
+  // A lead links only to its hub, so direct neighbours alone leave the frame
+  // almost empty. Keeping the focused node's whole zone lit is what makes a
+  // drill read as "this rep's cluster", which is the point of the shot.
+  const focused = graph.nodes.find((node) => node.id === focusedNodeId);
+  if (focused?.zoneIndex !== undefined) {
+    for (const node of graph.nodes) {
+      if (node.zoneIndex === focused.zoneIndex) ids.add(node.id);
+    }
+  }
   return ids;
 }
 

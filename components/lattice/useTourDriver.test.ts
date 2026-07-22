@@ -62,4 +62,38 @@ describe('useTourDriver', () => {
 
     expect(result.current.phase).toBe('wide');
   });
+
+  it('exposes nextLeadId while wide, but hides it once drilling', () => {
+    const app = fakeApp();
+    const { result } = renderHook(() => useTourDriver(app));
+
+    expect(result.current.phase).toBe('wide');
+    expect(result.current.nextLeadId).toBeTypeOf('number');
+
+    act(() => void vi.advanceTimersByTime(WIDE_MS + 10));
+
+    expect(result.current.phase).toBe('drill');
+    expect(result.current.nextLeadId).toBeUndefined();
+  });
+
+  it('exposes nextLeadId again during pullback', () => {
+    const app = fakeApp();
+    const { result } = renderHook(() => useTourDriver(app));
+
+    act(() => void vi.advanceTimersByTime(WIDE_MS + DRILL_MS + 10));
+
+    expect(result.current.phase).toBe('pullback');
+    expect(result.current.nextLeadId).toBeTypeOf('number');
+  });
+
+  it('still names the next cycle\'s first drill lead on the final pullback', () => {
+    const app = fakeApp();
+    const { result } = renderHook(() => useTourDriver(app));
+    const finalPullbackAt = WIDE_MS + 3 * DRILL_MS + 2 * PULLBACK_MS + 10;
+
+    act(() => void vi.advanceTimersByTime(finalPullbackAt));
+
+    expect(result.current.phase).toBe('pullback');
+    expect(result.current.nextLeadId).toBeTypeOf('number');
+  });
 });

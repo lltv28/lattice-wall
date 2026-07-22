@@ -85,6 +85,53 @@ describe("neighborIds", () => {
     const ids = neighborIds(graph, "icon-0-0");
     expect(ids).toEqual(new Set(["icon-0-0", "hub-0"]));
   });
+
+  it("keeps a focused avatar's whole zone lit, not just its direct hub link", () => {
+    const avatar0a: WheelNode = {
+      id: "avatar-0-a",
+      ring: "avatar",
+      zoneIndex: 0,
+      angle: 0.2,
+      radiusFraction: 0.9,
+      radius: 4,
+      color: "#2f6df6",
+    };
+    const avatar0b: WheelNode = {
+      id: "avatar-0-b",
+      ring: "avatar",
+      zoneIndex: 0,
+      angle: 0.3,
+      radiusFraction: 0.9,
+      radius: 4,
+      color: "#2f6df6",
+    };
+    const avatar1: WheelNode = {
+      id: "avatar-1-a",
+      ring: "avatar",
+      zoneIndex: 1,
+      angle: 1.2,
+      radiusFraction: 0.9,
+      radius: 4,
+      color: "#1f9d55",
+    };
+    const zonedGraph: WheelGraph = {
+      nodes: [center, hub0, icon0, hub1, avatar0a, avatar0b, avatar1],
+      links: [
+        ...graph.links,
+        { id: "l3", sourceId: "hub-0", targetId: "avatar-0-a" },
+        { id: "l4", sourceId: "hub-0", targetId: "avatar-0-b" },
+        { id: "l5", sourceId: "hub-1", targetId: "avatar-1-a" },
+      ],
+    };
+
+    const ids = neighborIds(zonedGraph, "avatar-0-a");
+    // The focused avatar's own hub and every sibling avatar in its zone stay lit...
+    expect(ids.has("hub-0")).toBe(true);
+    expect(ids.has("avatar-0-b")).toBe(true);
+    // ...but nothing from a different rep's zone does.
+    expect(ids.has("hub-1")).toBe(false);
+    expect(ids.has("avatar-1-a")).toBe(false);
+  });
 });
 
 describe("nodeIdAtPoint", () => {

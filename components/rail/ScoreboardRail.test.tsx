@@ -26,4 +26,20 @@ describe('ScoreboardRail', () => {
     expect(screen.getByText('booked a call')).toBeTruthy();
     expect(screen.getByText('bought · $27')).toBeTruthy();
   });
+
+  it('never renders a fractional revenue figure, even mid count-up animation', async () => {
+    render(
+      <ScoreboardRail
+        revenue={4233991}
+        purchases={46}
+        calls={31}
+        upsellPct={35}
+        width={300}
+        feed={[]}
+      />,
+    );
+
+    const revenue = await screen.findByText(/^\$[\d,]+$/);
+    expect(revenue.textContent).toMatch(/^\$[\d,]+$/);
+  });
 });
