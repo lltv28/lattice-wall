@@ -8,17 +8,22 @@ import { buildLeadIdentities } from '@/lib/lattice/leads';
 export const CARD_SIZE = { width: 420, height: 560 };
 
 const IDENTITIES = buildLeadIdentities();
-// speed: 3, not 6. Nearly every step of the quiz flow gates on
-// waitingForInput, so total run time is dominated by this speed-scaled
-// auto-answer delay (see lib/useChatFlow.ts + components/OnboardingChat.tsx),
-// on top of a fixed ~10.7s "Building your report" checklist
-// (components/GeneratingChecklist.tsx) that speed cannot touch at all. At
-// speed 3 the input steps take roughly 10s, landing a full run (~10s inputs
-// + ~10.7s generating) inside an 18s drill plus its short preload — see
-// DRILL_MS and useTourDriver's nextLeadId comment. 6x raced the funnel to
-// completion and back to its intro screen while the card was still hidden,
-// which is what produced a "Potential Complete" banner sitting on a
-// restarted intro on camera.
+// speed: 3. Nearly every step of the quiz flow gates on waitingForInput, so
+// total run time is dominated by this speed-scaled auto-answer delay (see
+// lib/useChatFlow.ts + components/OnboardingChat.tsx), on top of a fixed
+// ~10.7s "Building your report" checklist (components/GeneratingChecklist.tsx)
+// that speed cannot touch at all.
+//
+// 3 is also the CEILING: demoSpeed is clamped to { min: 0.25, max: 3 } at
+// OnboardingChat.tsx:97 and PlanFlow.tsx:133, so any larger value here is
+// silently ignored. An earlier version of this comment claimed 6 "raced the
+// funnel to completion" — it never did, because 6 was never in effect.
+//
+// This value has NOT been tuned against a real visible browser. Automated
+// capture cannot measure it: the progress badge and auto-scroll are
+// requestAnimationFrame-driven, so headless and background tabs render a
+// frozen intro screen no matter how far the quiz has actually advanced. Tune
+// this by watching a drill in a focused window, not from a screenshot.
 const FUNNEL_OPTS = { count: 8, demoScale: 0.62, speed: 3 };
 
 /**
