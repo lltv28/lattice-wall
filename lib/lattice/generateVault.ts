@@ -1,4 +1,5 @@
 import { createRandom } from "./random";
+import { buildLeadIdentities } from "./leads";
 import { buildRepLabel, SALES_REPS } from "./salesReps";
 import { angleForIndex } from "./wheelLayout";
 import type { WheelGraph, WheelLink, WheelNode } from "./types";
@@ -12,8 +13,9 @@ export const AVATAR_COUNT = 96;
 export const SATELLITE_PER_ICON = 2;
 
 const ZONE_COLORS = ["#2f6df6", "#1f9d55", "#e0524d", "#d97706", "#8b5cf6", "#0f9488"];
-const PERSON_INITIALS = ["JD", "AK", "MR", "TS", "LB", "CP", "NG", "RV"];
 const PERSON_COLORS = ["#2f6f4f", "#7a4fc9", "#c9634f", "#3f7fae", "#b08a2e"];
+
+const LEAD_IDENTITIES = buildLeadIdentities();
 
 // Tighter, more evenly-graduated ring spacing to match the reference wheel's
 // dense, close-packed rings (screenshot showed rings clustered much closer
@@ -191,6 +193,7 @@ export function generateVault(input: {
     for (let i = 0; i < avatarsPerZone; i += 1) {
       const angle = angleWithinZone(zoneIndex, i, avatarsPerZone);
       const personIndex = zoneIndex * avatarsPerZone + i;
+      const identity = LEAD_IDENTITIES[personIndex]!;
       const avatar: WheelNode = {
         id: `avatar-${zoneIndex}-${i}`,
         ring: "avatar",
@@ -199,7 +202,10 @@ export function generateVault(input: {
         radiusFraction: jitteredRadiusFraction(RADIUS_FRACTIONS.avatar, i),
         radius: NODE_PX_RADIUS.avatar,
         color: PERSON_COLORS[personIndex % PERSON_COLORS.length]!,
-        initials: PERSON_INITIALS[personIndex % PERSON_INITIALS.length],
+        initials: identity.initials,
+        label: `Lead ${identity.leadNo}`,
+        leadId: identity.id,
+        closed: false,
       };
       nodes.push(avatar);
       zoneAvatars.push(avatar);

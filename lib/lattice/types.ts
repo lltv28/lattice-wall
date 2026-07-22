@@ -10,6 +10,8 @@ export interface WheelNode {
   color: string;
   label?: string;
   initials?: string;
+  leadId?: number;
+  closed?: boolean;
 }
 
 export interface WheelLink {

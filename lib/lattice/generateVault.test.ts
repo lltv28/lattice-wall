@@ -7,6 +7,7 @@ import {
   SATELLITE_PER_ICON,
   ZONE_COUNT,
 } from "./generateVault";
+import { buildLeadIdentities } from "./leads";
 import type { WheelLink, WheelNode } from "./types";
 
 describe("generateVault", () => {
@@ -132,6 +133,22 @@ describe("generateVault", () => {
     const first = generateVault({ nodeCount: 80, linkDensity: 0.1, seed: 4 });
     const second = generateVault({ nodeCount: 80, linkDensity: 0.1, seed: 5 });
     expect(second).not.toEqual(first);
+  });
+
+  it("assigns a distinct lead identity to every avatar node", () => {
+    const graph = generateVault({ nodeCount: 150, linkDensity: 0.08, seed: 11 });
+    const avatars = graph.nodes.filter((node) => node.ring === "avatar");
+    const identities = buildLeadIdentities();
+
+    expect(avatars).toHaveLength(identities.length);
+    expect(new Set(avatars.map((node) => node.leadId)).size).toBe(identities.length);
+
+    for (const node of avatars) {
+      const identity = identities.find((lead) => lead.id === node.leadId);
+      expect(identity).toBeDefined();
+      expect(node.initials).toBe(identity!.initials);
+      expect(node.label).toBe(`Lead ${identity!.leadNo}`);
+    }
   });
 });
 
