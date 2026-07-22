@@ -22,7 +22,15 @@ const LatticeCanvas = dynamic(
 );
 
 const PAD = 40;
-const RAIL_W = 300;
+// 360, not 300. The three stat tiles (PURCHASES / CALLS / UPSELL %) have an
+// intrinsic minimum width of 346px together, measured in the browser. At 300
+// they overflowed the rail by 46px and the wheel column's background painted
+// over the spill, slicing the UPSELL % tile vertically.
+//
+// Widening the rail is free here: WHEEL_W becomes 1440, and the wheel radius
+// is 0.42 * min(WHEEL_W, WHEEL_H) with WHEEL_H = 1000, so the wheel stays
+// height-constrained at 420px and does not change size.
+const RAIL_W = 360;
 const COL_GAP = 40;
 
 export default function LatticePage() {
