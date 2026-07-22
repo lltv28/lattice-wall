@@ -15,7 +15,7 @@ export const SATELLITE_PER_ICON = 2;
 const ZONE_COLORS = ["#2f6df6", "#1f9d55", "#e0524d", "#d97706", "#8b5cf6", "#0f9488"];
 const PERSON_COLORS = ["#2f6f4f", "#7a4fc9", "#c9634f", "#3f7fae", "#b08a2e"];
 
-const LEAD_IDENTITIES = buildLeadIdentities();
+const LEAD_IDENTITIES = buildLeadIdentities(AVATAR_COUNT);
 
 // Tighter, more evenly-graduated ring spacing to match the reference wheel's
 // dense, close-packed rings (screenshot showed rings clustered much closer

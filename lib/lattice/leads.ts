@@ -11,12 +11,12 @@ export interface LeadIdentity {
 // 12 × 8 = 96 unique combinations, so a straight index split gives every
 // lead node its own name without any collision handling.
 const FIRST_NAMES = [
-  'Jordan', 'Avery', 'Morgan', 'Riley', 'Casey', 'Taylor',
-  'Quinn', 'Rowan', 'Skyler', 'Emerson', 'Harper', 'Sawyer',
+  "Jordan", "Avery", "Morgan", "Riley", "Casey", "Taylor",
+  "Quinn", "Rowan", "Skyler", "Emerson", "Harper", "Sawyer",
 ];
 
 const LAST_NAMES = [
-  'Lee', 'Nakamura', 'Osei', 'Brooks', 'Chen', 'Alvarez', 'Whitfield', 'Reyes',
+  "Lee", "Nakamura", "Osei", "Brooks", "Chen", "Alvarez", "Whitfield", "Reyes",
 ];
 
 export const LEAD_COUNT = 96;
