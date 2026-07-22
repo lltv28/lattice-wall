@@ -1,4 +1,4 @@
-import { createLeads } from '@/lib/adStage';
+import { createLeads } from "@/lib/adStage";
 
 export interface LeadIdentity {
   id: number;

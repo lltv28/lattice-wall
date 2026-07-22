@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildLeadIdentities } from "./leads";
 
-describe('buildLeadIdentities', () => {
+describe("buildLeadIdentities", () => {
   it("builds 96 leads numbered 101 through 196", () => {
     const leads = buildLeadIdentities();
     expect(leads).toHaveLength(96);
