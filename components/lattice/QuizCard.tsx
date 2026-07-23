@@ -93,11 +93,19 @@ export function QuizCard({
   const anchor = nodePosition ?? { x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 };
   const placement = placeCard(anchor, CARD_SIZE, bounds);
 
-  // The connector runs from the focused orb to the midpoint of whichever
-  // card edge actually faces the wheel — the left edge when the card sits on
-  // the right (side: "right"), the right edge when it sits on the left.
+  // The connector runs from the focused orb to whichever card edge actually
+  // faces the wheel — the left edge when the card sits on the right (side:
+  // "right"), the right edge when it sits on the left. It lands at the
+  // orb's own height rather than the edge's midpoint, so it doesn't read as
+  // disconnected when the orb sits well above or below the card's center;
+  // clamped so it can't land past either corner.
   const cardEdgeX = placement.side === 'right' ? placement.x : placement.x + CARD_SIZE.width;
-  const cardEdgeY = placement.y + CARD_SIZE.height / 2;
+  const cardEdgeY = nodePosition
+    ? Math.min(
+        Math.max(nodePosition.y, placement.y + 28),
+        placement.y + CARD_SIZE.height - 28,
+      )
+    : placement.y + CARD_SIZE.height / 2;
 
   return (
     <>
@@ -118,7 +126,11 @@ export function QuizCard({
           border: `1px solid ${C.border}`,
           boxShadow: C.cardShadow,
           opacity: visible ? 1 : 0,
-          transition: 'opacity 420ms ease, left 520ms ease, top 520ms ease',
+          // Position (left/top) only ever changes between drills, while the
+          // card is faded out — animating it bought nothing but guaranteed
+          // it visibly disagreed with the (instantly redrawn) connector line
+          // whenever it relocated.
+          transition: 'opacity 420ms ease',
           pointerEvents: 'none',
           zIndex: 5,
         }}

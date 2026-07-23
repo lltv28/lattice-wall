@@ -89,6 +89,12 @@ export default function LatticePage() {
   // placeCard's clamp would happily put the card back on top of the wheel.
   // getFocusSide() picks which side mirrors CanvasRenderer's own pan choice.
   const focusSide = app?.getFocusSide();
+  // The card and connector are driven by whichever node is actually FOCUSED
+  // (tour-driven or click-driven), not by tour state — a click moves the
+  // focus without moving the tour, and the two must not disagree. Defined
+  // only when the focused node is a lead (ring === "avatar"); undefined for
+  // a focused hub or nothing focused at all, which is what hides the card.
+  const focusedLeadId = app?.getFocusedLeadId();
   const bounds = useMemo(() => {
     if (focusSide === 'left') {
       return {
@@ -115,14 +121,17 @@ export default function LatticePage() {
   const realKeyRef = useRef(1_000_000); // above useLiveTally's key space
 
   useEffect(() => {
-    if (!app || tour.leadId === undefined) return;
-    const outcome = outcomes[tour.leadId];
-    if (!outcome || seenRef.current.has(tour.leadId)) return;
-    seenRef.current.add(tour.leadId);
+    if (!app || focusedLeadId === undefined) return;
+    const outcome = outcomes[focusedLeadId];
+    if (!outcome || seenRef.current.has(focusedLeadId)) return;
+    seenRef.current.add(focusedLeadId);
 
-    if (tour.nodeId) app.markClosed(tour.nodeId);
+    // Whichever lead is actually on screen, not necessarily the tour's own
+    // lead — a click can focus a different one than the tour last drilled.
+    const node = app.getLeadNodes().find((lead) => lead.leadId === focusedLeadId);
+    if (node) app.markClosed(node.id);
 
-    const identity = identities.find((lead) => lead.id === tour.leadId);
+    const identity = identities.find((lead) => lead.id === focusedLeadId);
     if (!identity) return;
     setRealFeed((prev) =>
       [
@@ -135,13 +144,46 @@ export default function LatticePage() {
         ...prev,
       ].slice(0, 4),
     );
-  }, [app, outcomes, tour.leadId, tour.nodeId, identities]);
+  }, [app, outcomes, focusedLeadId, identities]);
 
   // Real lines sit on top, ambient lines fill the rest, capped at the rail's
   // visible row count.
   const mergedFeed = useMemo(() => [...realFeed, ...feed].slice(0, 9), [realFeed, feed]);
 
-  const nodePosition = app?.getFocusScreenPosition();
+  // Sampling getFocusScreenPosition() once during render (as this used to)
+  // only catches the camera wherever it happens to be at the moment React
+  // re-renders — usually still easing toward the drill's panned composition,
+  // sometimes not even that (a click moves the camera with no React
+  // re-render at all). Track it continuously instead via rAF while a lead is
+  // focused, so the connector always matches the camera's current, not
+  // stale, position. Only setState past a small deadband so React does not
+  // re-render every single frame once the camera has settled.
+  const [nodePosition, setNodePosition] = useState<{ x: number; y: number } | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    if (!app || focusedLeadId === undefined) return;
+
+    let frameId: number;
+    const tick = () => {
+      const next = app.getFocusScreenPosition();
+      setNodePosition((prev) => {
+        if (
+          prev &&
+          next &&
+          Math.abs(prev.x - next.x) < 0.5 &&
+          Math.abs(prev.y - next.y) < 0.5
+        ) {
+          return prev;
+        }
+        return next;
+      });
+      frameId = requestAnimationFrame(tick);
+    };
+    frameId = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(frameId);
+  }, [app, focusedLeadId]);
 
   return (
     <main
@@ -183,11 +225,11 @@ export default function LatticePage() {
           <LatticeCanvas onReady={handleReady} />
 
           <QuizCard
-            leadId={tour.leadId}
+            leadId={focusedLeadId}
             nextLeadId={tour.nextLeadId}
             nodePosition={nodePosition}
             bounds={bounds}
-            visible={tour.phase === 'drill'}
+            visible={focusedLeadId !== undefined}
           />
         </section>
       </div>

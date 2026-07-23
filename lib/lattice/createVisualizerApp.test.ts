@@ -209,6 +209,27 @@ describe("createVisualizerApp", () => {
     app.destroy();
   });
 
+  it("getFocusedLeadId reports a lead's id, undefined for a focused hub, and undefined when nothing is focused", () => {
+    const root = document.createElement("div");
+    const app = createVisualizerApp(root, {
+      rendererFactory: () => ({ render: vi.fn(), resize: vi.fn() }),
+    });
+
+    expect(app.getFocusedLeadId()).toBeUndefined();
+
+    app.focusNode("hub-0");
+    expect(app.getFocusedLeadId()).toBeUndefined();
+
+    const lead = app.getLeadNodes()[0]!;
+    app.focusNode(lead.id);
+    expect(app.getFocusedLeadId()).toBe(lead.leadId);
+
+    app.focusNode(undefined);
+    expect(app.getFocusedLeadId()).toBeUndefined();
+
+    app.destroy();
+  });
+
   it("marks a lead node closed", () => {
     const root = document.createElement("div");
     const app = createVisualizerApp(root, {

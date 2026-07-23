@@ -21,6 +21,7 @@ export interface VisualizerApp {
   focusNode(nodeId: string | undefined): void;
   getFocusScreenPosition(): { x: number; y: number } | undefined;
   getFocusSide(): CardSide | undefined;
+  getFocusedLeadId(): number | undefined;
   getLeadNodes(): WheelNode[];
   markClosed(nodeId: string): void;
 }
@@ -82,6 +83,9 @@ export function createVisualizerApp(
         return undefined;
       },
       getFocusSide(): undefined {
+        return undefined;
+      },
+      getFocusedLeadId(): undefined {
         return undefined;
       },
       getLeadNodes(): WheelNode[] {
@@ -346,6 +350,11 @@ export function createVisualizerApp(
     return focusedNode ? focusSideFor(focusedNode) : undefined;
   }
 
+  function getFocusedLeadId(): number | undefined {
+    const focusedNode = findFocusedNode();
+    return focusedNode?.ring === "avatar" ? focusedNode.leadId : undefined;
+  }
+
   function getLeadNodes(): WheelNode[] {
     return visibleGraph().nodes.filter((node) => node.ring === "avatar");
   }
@@ -367,6 +376,7 @@ export function createVisualizerApp(
     focusNode,
     getFocusScreenPosition,
     getFocusSide,
+    getFocusedLeadId,
     getLeadNodes,
     markClosed,
   };
