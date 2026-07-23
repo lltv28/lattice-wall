@@ -54,6 +54,14 @@ const CARD_MARGIN = 16;
 // genuinely different Lead 160.
 const AMBIENT_FIRST_LEAD_NO = 200;
 
+// Beat between the lattice reacting to a focus (pan, cluster lighting) and
+// the quiz card opening, so the two do not land at the same instant. This
+// eats into the card's visible time within a drill — DRILL_MS in
+// lib/lattice/tour.ts is 18s, so raising this delay shortens how long the
+// card is shown before the drill ends; if it were ever raised to or past
+// DRILL_MS, the card would never appear at all.
+const CARD_OPEN_DELAY_MS = 2_000;
+
 export default function LatticePage() {
   const fit = useFitStage();
   useRecordingChrome('#eef1f5');
@@ -95,6 +103,36 @@ export default function LatticePage() {
   // only when the focused node is a lead (ring === "avatar"); undefined for
   // a focused hub or nothing focused at all, which is what hides the card.
   const focusedLeadId = app?.getFocusedLeadId();
+
+  // The card must hide immediately when focus changes — to a different lead
+  // or to none — but only become visible again after CARD_OPEN_DELAY_MS of
+  // the SAME lead staying focused. One piece of state, so "which lead this
+  // gate reflects" and "is it open" can never disagree. Resetting visible to
+  // false the instant focusedLeadId changes is a synchronous update, which
+  // react-hooks/set-state-in-effect forbids inside an effect body — so it's
+  // done here during render instead, the same "adjusting state during
+  // render" pattern QuizCard's iframe pool uses (components/lattice/QuizCard.tsx).
+  const [cardGate, setCardGate] = useState<{ leadId: number | undefined; visible: boolean }>({
+    leadId: undefined,
+    visible: false,
+  });
+  if (cardGate.leadId !== focusedLeadId) {
+    setCardGate({ leadId: focusedLeadId, visible: false });
+  }
+
+  // The delayed open itself. Setting visible = true here happens inside a
+  // setTimeout callback, so it's asynchronous and fine inside an effect.
+  // Cleanup clears the timer whenever focusedLeadId changes (including to
+  // undefined) or the component unmounts, so a stale timer can never pop the
+  // card open for a lead that is no longer focused.
+  useEffect(() => {
+    if (focusedLeadId === undefined) return;
+    const timer = setTimeout(() => {
+      setCardGate((prev) => ({ ...prev, visible: true }));
+    }, CARD_OPEN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [focusedLeadId]);
+
   const bounds = useMemo(() => {
     if (focusSide === 'left') {
       return {
@@ -229,7 +267,7 @@ export default function LatticePage() {
             nextLeadId={tour.nextLeadId}
             nodePosition={nodePosition}
             bounds={bounds}
-            visible={focusedLeadId !== undefined}
+            visible={cardGate.visible}
           />
         </section>
       </div>
